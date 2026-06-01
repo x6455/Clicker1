@@ -1,51 +1,64 @@
 name: Flutter APK Builder
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+push:
+branches: [ main ]
+pull_request:
+branches: [ main ]
 
 jobs:
-  build-android:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-    
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.22.2'
-        channel: 'stable'
-    
-    - name: Create local.properties
-      run: |
-        mkdir -p android
-        echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
-        echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
-    
-    - name: Clean
-      run: flutter clean
-    
-    - name: Get dependencies
-      run: flutter pub get
-    
-    - name: Generate localizations
-      run: flutter gen-l10n
-    
-    - name: Build APK
-      run: flutter build apk --release
-    
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release
-        path: build/app/outputs/flutter-apk/app-release.apk
-        retention-days: 30
+build-android:
+runs-on: ubuntu-latest
+
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
+
+  - name: Setup Java
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: '17'
+
+  - name: Setup Flutter
+    uses: subosito/flutter-action@v2
+    with:
+      flutter-version: '3.22.2'
+      channel: stable
+
+  - name: Flutter Doctor
+    run: flutter doctor -v
+
+  - name: Create local.properties
+    run: |
+      mkdir -p android
+      echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+      echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
+
+  - name: Clean
+    run: flutter clean
+
+  - name: Get Dependencies
+    run: flutter pub get
+
+  - name: Generate Localizations
+    run: flutter gen-l10n
+
+  - name: Build APK (Verbose)
+    run: |
+      flutter build apk --release -v 2>&1 | tee build.log
+
+  - name: Upload Build Log
+    if: always()
+    uses: actions/upload-artifact@v4
+    with:
+      name: build-log
+      path: build.log
+
+  - name: Upload APK
+    if: success()
+    uses: actions/upload-artifact@v4
+    with:
+      name: app-release
+      path: build/app/outputs/flutter-apk/app-release.apk
+      retention-days: 30
