@@ -2,7 +2,7 @@
 import 'package:flutter/services.dart';
 
 class AccessibilityBridge {
-  static const _channel = MethodChannel('com.macrorunner/accessibility');
+  static const _channel = MethodChannel('com.starterapp/accessibility');
 
   /// Check if accessibility service is enabled
   static Future<bool> isServiceEnabled() async {
