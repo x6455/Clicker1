@@ -1,25 +1,25 @@
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:starterapp/services/locale_service_provider.dart';
+// lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:starterapp/starter_app.dart';
+import 'screens/macro_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // Set only portrait orientation
-  await SystemChrome.setPreferredOrientations(
-    [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown],
-  );
+  runApp(const MacroTestApp());
+}
 
-  runApp(
-    MultiProvider(
-      providers: [
-        //Add here the providers
-        ChangeNotifierProvider(
-          create: (context) => LocaleServiceProvider(),
-        ),
-      ],
-      child: const StarterApp(),
-    ),
-  );
+class MacroTestApp extends StatelessWidget {
+  const MacroTestApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Macro Runner',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorSchemeSeed: Colors.deepPurple,
+        useMaterial3: true,
+      ),
+      home: const MacroScreen(),
+    );
+  }
 }
