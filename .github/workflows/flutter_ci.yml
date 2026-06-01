@@ -1,38 +1,186 @@
-name: Android APK Build
+name: Flutter APK Builder
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build-apk:
+  build-android:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: 3.22.2
-
-      - name: Get Dependencies
-        run: flutter pub get
-
-      - name: Build Release APK
-        run: flutter build apk --release
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+    - uses: actions/checkout@v4
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.22.2'
+        channel: 'stable'
+    
+    - name: Enable Flutter Android support
+      run: flutter config --enable-android
+    
+    - name: Debug - Show Flutter version
+      run: flutter --version
+    
+    - name: Debug - List project structure
+      run: |
+        echo "=== Project Structure ==="
+        ls -la
+        echo "=== Android Directory ==="
+        ls -la android/
+        echo "=== Android App Directory ==="
+        ls -la android/app/
+        echo "=== Android Source Directories ==="
+        find android/app/src -type d
+    
+    - name: Debug - Find all Java/Kotlin files
+      run: |
+        echo "=== All Java files ==="
+        find android -name "*.java" -type f
+        echo "=== All Kotlin files ==="
+        find android -name "*.kt" -type f
+    
+    - name: Debug - Check for v1 embedding in code
+      run: |
+        echo "=== Searching for v1 embedding references ==="
+        grep -r "io.flutter.app.Flutter" android/app/src --include="*.java" --include="*.kt" --include="*.xml" 2>/dev/null || echo "No v1 embedding found in source"
+        grep -r "FlutterActivity" android/app/src --include="*.java" --include="*.kt" 2>/dev/null || echo "No FlutterActivity references found"
+    
+    - name: Clean previous builds
+      run: |
+        echo "=== Cleaning Flutter ==="
+        flutter clean
+        echo "=== Cleaning Gradle ==="
+        cd android
+        chmod +x gradlew
+        ./gradlew clean
+        cd ..
+        echo "=== Removing build directories ==="
+        rm -rf build/
+        rm -rf android/app/build/
+        rm -rf android/build/
+    
+    - name: Remove v1 embedding artifacts
+      run: |
+        echo "=== Removing potential v1 embedding files ==="
+        # Remove any potential v1 embedding files
+        find android -name "GeneratedPluginRegistrant.java" -delete
+        find android -name "MainActivity.java" -delete
+        find android -name "*.java" -path "*/io/flutter/*" -delete
+        echo "=== Checking MainActivity.kt exists ==="
+        # Ensure only Kotlin MainActivity exists
+        MAIN_ACTIVITY_PATH="android/app/src/main/kotlin/com/example/starterapp/MainActivity.kt"
+        if [ -f "$MAIN_ACTIVITY_PATH" ]; then
+          echo "✅ MainActivity.kt found at $MAIN_ACTIVITY_PATH"
+          cat "$MAIN_ACTIVITY_PATH"
+        else
+          echo "❌ MainActivity.kt not found at $MAIN_ACTIVITY_PATH"
+          echo "Looking for MainActivity anywhere:"
+          find android -name "MainActivity.*" -type f
+          exit 1
+        fi
+    
+    - name: Get Flutter dependencies
+      run: |
+        echo "=== Getting Flutter packages ==="
+        flutter pub get
+        echo "=== Flutter doctor ==="
+        flutter doctor -v
+    
+    - name: Verify Android configuration
+      run: |
+        echo "=== Checking AndroidManifest.xml ==="
+        cat android/app/src/main/AndroidManifest.xml
+        echo "=== Verifying no v1 embedding in manifest ==="
+        if grep -q "io.flutter.app.FlutterApplication" android/app/src/main/AndroidManifest.xml; then
+          echo "❌ ERROR: Found v1 embedding (FlutterApplication) in AndroidManifest"
+          exit 1
+        fi
+        if grep -q "io.flutter.app.FlutterActivity" android/app/src/main/AndroidManifest.xml; then
+          echo "❌ ERROR: Found v1 embedding (FlutterActivity) in AndroidManifest"
+          exit 1
+        fi
+        echo "✅ AndroidManifest is correct (no v1 embedding found)"
+    
+    - name: Debug - Check build.gradle files
+      run: |
+        echo "=== android/build.gradle ==="
+        head -30 android/build.gradle
+        echo "=== android/app/build.gradle ==="
+        head -50 android/app/build.gradle
+        echo "=== Checking for v1 embedding in gradle ==="
+        if grep -q "io.flutter.app.Flutter" android/app/build.gradle; then
+          echo "⚠️  Found potential v1 references in build.gradle"
+        else
+          echo "✅ No v1 references in build.gradle"
+        fi
+    
+    - name: Debug - Check for accessibility service config
+      run: |
+        echo "=== Checking accessibility service config ==="
+        if [ -f "android/app/src/main/res/xml/accessibility_service_config.xml" ]; then
+          echo "✅ accessibility_service_config.xml found"
+          cat android/app/src/main/res/xml/accessibility_service_config.xml
+        else
+          echo "⚠️  accessibility_service_config.xml not found (this may be needed)"
+        fi
+    
+    - name: Build APK
+      run: |
+        echo "=== Starting APK build ==="
+        flutter build apk --release --verbose 2>&1 | tee build_log.txt
+        BUILD_EXIT_CODE=${PIPESTATUS[0]}
+        echo "Build exit code: $BUILD_EXIT_CODE"
+        if [ $BUILD_EXIT_CODE -ne 0 ]; then
+          echo "=== Build failed! Last 100 lines of log ==="
+          tail -100 build_log.txt
+          exit $BUILD_EXIT_CODE
+        fi
+    
+    - name: Debug - Check build outputs
+      run: |
+        echo "=== Checking for APK files ==="
+        find build -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
+        echo "=== Build directory structure ==="
+        ls -la build/ 2>/dev/null || echo "Build directory not found"
+        ls -la build/app/ 2>/dev/null || echo "Build/app directory not found"
+        ls -la build/app/outputs/ 2>/dev/null || echo "Outputs directory not found"
+        ls -la build/app/outputs/flutter-apk/ 2>/dev/null || echo "Flutter-apk directory not found"
+    
+    - name: List build outputs
+      if: success()
+      run: |
+        echo "=== APK files ==="
+        ls -la build/app/outputs/flutter-apk/ || echo "No APK found"
+        if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+          echo "✅ APK successfully created"
+          file build/app/outputs/flutter-apk/app-release.apk
+        else
+          echo "❌ APK file not found!"
+          exit 1
+        fi
+    
+    - name: Upload APK
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: build/app/outputs/flutter-apk/app-release.apk
+        retention-days: 30
+    
+    - name: Upload build log on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-log
+        path: build_log.txt
+        retention-days: 7
