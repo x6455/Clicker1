@@ -1,11 +1,11 @@
-package com.example.macro_runner
+package com.example.starterapp
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
-    private val CHANNEL = "com.macrorunner/accessibility"
+    private val CHANNEL = "com.starterapp/accessibility"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
