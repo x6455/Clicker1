@@ -29,14 +29,11 @@ jobs:
       - name: Flutter Doctor
         run: flutter doctor -v
 
-      # 🔥 FORCE FIX broken Android embedding state
-      - name: Reset Flutter project structure
+      - name: Clean project
         run: |
           flutter clean
-          rm -rf android/.gradle
           rm -rf build
           flutter pub get
-          flutter create . --platforms=android
 
       - name: Generate localization files
         run: flutter gen-l10n
