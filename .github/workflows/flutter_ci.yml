@@ -2,66 +2,56 @@ name: Flutter APK Builder
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2'
+          flutter-version: "3.22.2"
           channel: stable
 
       - name: Flutter Doctor
         run: flutter doctor -v
 
-      - name: Create local.properties
+      # 🔥 IMPORTANT: ensure clean Android + rebuild metadata
+      - name: Fix Android project + clean
         run: |
-          mkdir -p android
-          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
-          echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
+          flutter clean
+          rm -rf android/.gradle
+          rm -rf build
+          flutter pub get
 
-      - name: Clean Project
-        run: flutter clean
-
-      - name: Get Dependencies
-        run: flutter pub get
+      - name: Regenerate Android (fix v1 embedding issues)
+        run: flutter create .
 
       - name: Generate Localizations
         run: flutter gen-l10n
 
-      - name: Show Dependency Tree
+      - name: Show dependencies
         run: flutter pub deps
 
-      - name: Build APK (Verbose)
-        run: flutter build apk --release -v 2>&1 | tee build.log
-
-      - name: Upload Build Log (Always)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build.log
+      - name: Build APK (verbose)
+        run: flutter build apk --release -v
 
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: app-release
           path: build/app/outputs/flutter-apk/app-release.apk
