@@ -7,11 +7,11 @@ on:
     branches: [ main ]
 
 jobs:
-  build-android:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -29,22 +29,17 @@ jobs:
       - name: Flutter Doctor
         run: flutter doctor -v
 
-      # 🔥 IMPORTANT: ensure clean Android + rebuild metadata
-      - name: Fix Android project + clean
+      # 🔥 FORCE FIX broken Android embedding state
+      - name: Reset Flutter project structure
         run: |
           flutter clean
           rm -rf android/.gradle
           rm -rf build
           flutter pub get
+          flutter create . --platforms=android
 
-      - name: Regenerate Android (fix v1 embedding issues)
-        run: flutter create .
-
-      - name: Generate Localizations
+      - name: Generate localization files
         run: flutter gen-l10n
-
-      - name: Show dependencies
-        run: flutter pub deps
 
       - name: Build APK (verbose)
         run: flutter build apk --release -v
@@ -55,4 +50,3 @@ jobs:
         with:
           name: app-release
           path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
