@@ -26,13 +26,21 @@ jobs:
           flutter-version: "3.22.2"
           channel: stable
 
-      - name: Flutter Doctor
-        run: flutter doctor -v
-
-      - name: Clean + Get packages
+      # 🔥 CRITICAL FIX STEP
+      - name: Repair Flutter project structure
         run: |
+          flutter config --no-analytics
           flutter clean
+          rm -rf .dart_tool
+          rm -rf build
           flutter pub get
+
+      # 🔥 FORCE regenerate Android metadata (safe version)
+      - name: Recreate Flutter Android wiring
+        run: flutter create . --platforms=android --overwrite
+
+      - name: Verify Flutter setup
+        run: flutter doctor -v
 
       - name: Build APK (verbose)
         run: flutter build apk --release -v
