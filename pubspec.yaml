@@ -1,61 +1,33 @@
-name: Flutter APK Builder
+name: starterapp
+description: A new Flutter project.
+publish_to: 'none' 
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+version: 1.0.0+1
 
-jobs:
-  build-android:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-    
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.22.2'
-        channel: 'stable'
-    
-    - name: Create local.properties
-      run: |
-        echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
-        echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
-    
-    - name: Clean previous builds
-      run: |
-        flutter clean
-        rm -rf android/.gradle
-        rm -rf android/app/build
-        rm -rf android/build
-    
-    - name: Get Flutter dependencies
-      run: flutter pub get
-    
-    - name: Build APK
-      run: flutter build apk --release
-    
-    - name: Check APK
-      run: |
-        if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-          echo "✅ APK built successfully!"
-          ls -la build/app/outputs/flutter-apk/
-        else
-          echo "❌ APK not found"
-          exit 1
-        fi
-    
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release
-        path: build/app/outputs/flutter-apk/app-release.apk
-        retention-days: 30
+environment:
+  sdk: '>=3.0.3 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  dio: ^5.1.1
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  provider: ^6.0.5
+  shared_preferences: ^2.1.2
+  dart_jsonwebtoken: ^2.8.0
+  internet_connection_checker: ^1.0.0+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true
+  assets:
+    - assets/
+    - assets/images/
