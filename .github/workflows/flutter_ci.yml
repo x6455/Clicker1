@@ -29,14 +29,10 @@ jobs:
       - name: Flutter Doctor
         run: flutter doctor -v
 
-      - name: Clean project
+      - name: Clean + Get packages
         run: |
           flutter clean
-          rm -rf build
           flutter pub get
-
-      - name: Generate localization files
-        run: flutter gen-l10n
 
       - name: Build APK (verbose)
         run: flutter build apk --release -v
@@ -45,5 +41,5 @@ jobs:
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: app-release
+          name: starterapp-release
           path: build/app/outputs/flutter-apk/app-release.apk
