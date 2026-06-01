@@ -25,106 +25,24 @@ jobs:
         flutter-version: '3.22.2'
         channel: 'stable'
     
-    - name: Enable Flutter Android support
-      run: flutter config --enable-android
-    
-    - name: Debug - Show Flutter version
-      run: flutter --version
-    
-    - name: Debug - List project structure
+    - name: Create local.properties
       run: |
-        echo "=== Project Structure ==="
-        ls -la
-        echo "=== Android Directory ==="
-        ls -la android/ || echo "Android directory not found!"
-        echo "=== Check if this is a Flutter project ==="
-        ls -la lib/ || echo "Lib directory not found!"
-        ls -la pubspec.yaml || echo "pubspec.yaml not found!"
+        mkdir -p android
+        echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+        echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
     
-    - name: Debug - Check for gradlew
-      run: |
-        echo "=== Looking for gradlew ==="
-        find . -name "gradlew" -type f 2>/dev/null || echo "No gradlew found"
-        echo "=== Android directory contents ==="
-        ls -la android/ 2>/dev/null || echo "No android directory"
-        echo "=== Gradle wrapper directory ==="
-        ls -la android/gradle/wrapper/ 2>/dev/null || echo "No gradle wrapper directory"
+    - name: Clean
+      run: flutter clean
     
-    - name: Generate missing Gradle wrapper if needed
-      run: |
-        if [ ! -f "android/gradlew" ]; then
-          echo "⚠️  gradlew not found, generating..."
-          cd android
-          # Create gradle wrapper if missing
-          if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "Creating gradlew script..."
-            echo '#!/bin/sh' > gradlew
-            echo 'exec java -cp "gradle/wrapper/gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain "$@"' >> gradlew
-            chmod +x gradlew
-          else
-            echo "❌ Gradle wrapper jar also missing, need to create Flutter project properly"
-            cd ..
-            flutter create --platforms=android .
-          fi
-          cd ..
-        fi
+    - name: Get dependencies
+      run: flutter pub get
     
-    - name: Clean previous builds
-      run: |
-        echo "=== Cleaning Flutter ==="
-        flutter clean
-        echo "=== Cleaning Gradle (if gradlew exists) ==="
-        if [ -f "android/gradlew" ]; then
-          cd android
-          chmod +x gradlew
-          ./gradlew clean || echo "Gradle clean failed but continuing"
-          cd ..
-        else
-          echo "⚠️  gradlew still not found, skipping gradle clean"
-        fi
-        echo "=== Removing build directories ==="
-        rm -rf build/
-        rm -rf android/app/build/
-        rm -rf android/build/
-    
-    - name: Get Flutter dependencies
-      run: |
-        echo "=== Getting Flutter packages ==="
-        flutter pub get
-        echo "=== Flutter doctor ==="
-        flutter doctor -v
-    
-    - name: Build APK directly (bypassing gradlew issues)
-      run: |
-        echo "=== Building APK ==="
-        # Let Flutter handle the gradle wrapper
-        flutter build apk --release --verbose 2>&1 | tee build_log.txt
-    
-    - name: Check if build succeeded
-      run: |
-        echo "=== Checking for APK ==="
-        if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-          echo "✅ APK built successfully!"
-          ls -la build/app/outputs/flutter-apk/
-        else
-          echo "❌ APK not found"
-          echo "=== Build directory contents ==="
-          find build -type f 2>/dev/null || echo "No build directory"
-          exit 1
-        fi
+    - name: Build APK
+      run: flutter build apk --release
     
     - name: Upload APK
-      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: app-release
         path: build/app/outputs/flutter-apk/app-release.apk
         retention-days: 30
-    
-    - name: Upload build log on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-log
-        path: build_log.txt
-        retention-days: 7
